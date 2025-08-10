@@ -56,9 +56,11 @@ var Visibles = []Node{}
 var CurrentWorkspace = ""
 var Debug = false
 var Version = false
+var Notswitch = false
 
 func main() {
 	flag.BoolVarP(&Debug, "debug", "d", false, "enable debugging")
+	flag.BoolVarP(&Notswitch, "no-switch", "n", false, "do not switch windows")
 	flag.BoolVarP(&Version, "version", "v", false, "show program version")
 	flag.Parse()
 
@@ -76,7 +78,7 @@ func main() {
 
 	id := findNextWindow()
 
-	if id > 0 {
+	if id > 0 && !Notswitch {
 		switchFocus(id)
 	}
 }
@@ -199,6 +201,7 @@ func processJSON(jsoncode []byte) error {
 			// this is an output node containing the current workspace
 			CurrentWorkspace = node.Current_workspace
 			recurseNodes(node.Nodes)
+			break
 		}
 	}
 
@@ -220,11 +223,15 @@ func recurseNodes(nodes []Node) {
 				recurseNodes(node.Nodes)
 				return
 			}
+
+			// ignore other workspaces
+			continue
 		}
 
 		// the first nodes seen are workspaces, so if we see a con
 		// node, we are already inside the current workspace
-		if (istype(node, con) || istype(node, floating)) && (node.Window > 0 || node.X11Window != "") {
+		if (istype(node, con) || istype(node, floating)) &&
+			(node.Window > 0 || node.X11Window != "") {
 			Visibles = append(Visibles, node)
 		} else {
 			recurseNodes(node.Nodes)
