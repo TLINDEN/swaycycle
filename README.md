@@ -1,6 +1,9 @@
 # swaycycle
 
-Cycle through all visible windows on a sway[fx] workspace
+Cycle through  all visible windows  on a sway[fx]  workspace including
+floating  ones or  windows  in sub-containers.   So  it simulates  the
+behavior of other window managers  and desktop environments. Just bind
+the tool to `ALT-tab` and there you go.
 
 ## Installation
 
