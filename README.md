@@ -9,8 +9,13 @@ the tool to `ALT-tab` and there you go.
 
 ## Installation
 
-Checkout the repo and execute `make`. You'll need the go toolkit. Then
-copy the binary `swaycycle` to some location within your `$PATH`.
+Download  the   binary  for   your  architecture  from   the  [release
+page](https://github.com/TLINDEN/swaycycle/releases) and copy to to to
+some location within your `$PATH`.
+
+To  build  the  tool  from  source,  checkout  the  repo  and  execute
+`make`. You'll need  the go toolkit. Then copy  the binary `swaycycle`
+to some location within your `$PATH`.
 
 ## Configuration
 
