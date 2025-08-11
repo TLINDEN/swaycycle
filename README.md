@@ -40,6 +40,31 @@ It's also possible to debug an instance executed by sway using the
 bindsym $mod+Tab exec ~/bin/swaycycle -d -l /tmp/cycle.log
 ```
 
+## How does it work?
+
+`swaycycle` is being executed by sway when the user presses a key
+(e.g. `ALT-tab`). It then executes:
+
+`swaymsg -t get_tree -r`
+
+to get a  JSON representation of the current setup  (a tree consisting
+of outputs, workspaces, containers and running programs).
+
+Then it determines which workspace is the current active one and
+builds a list of all windows visible on that workspace, whether
+floating or not.
+
+Next it determines which window is following the one in the list with
+the current active focus. If the active one is at the end of the list,
+it starts from the top.
+
+Finally another swaymsg command is being executed to give focus to the
+calculated next window, e.g.:
+
+`swaymsg [con_id=14] focus`
+
+`swaycycle` then just exists. It does not store any state to disk.
+
 ## Getting help
 
 Although I'm happy to hear from swaycycle users in private email, that's the
