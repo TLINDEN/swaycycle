@@ -21,23 +21,18 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
+	"log/slog"
 	"os"
 	"os/exec"
+	"runtime/debug"
 
-	"github.com/alecthomas/repr"
+	"github.com/lmittmann/tint"
+	"github.com/mattn/go-isatty"
+	"github.com/tlinden/yadu"
 
 	flag "github.com/spf13/pflag"
-)
-
-const (
-	root = iota + 1
-	output
-	workspace
-	con
-	floating
-
-	VERSION = "v0.1.2"
 )
 
 type Node struct {
@@ -52,21 +47,77 @@ type Node struct {
 	Current_workspace string `json:"current_workspace"`
 }
 
-var Visibles = []Node{}
-var CurrentWorkspace = ""
-var Debug = false
-var Version = false
-var Notswitch = false
+const (
+	root = iota + 1
+	output
+	workspace
+	con
+	floating
+
+	LevelNotice = slog.Level(2)
+
+	VERSION = "v0.1.2"
+)
+
+var (
+	Visibles         = []Node{}
+	CurrentWorkspace = ""
+	Debug            = false
+	Dumptree         = false
+	Version          = false
+	Verbose          = false
+	Notswitch        = false
+	Showhelp         = false
+	Logfile          = ""
+)
+
+const Usage string = `This is swaycycle - cycle focus through all visible windows on a sway workspace.
+
+Usage: swaycycle [-vVdDn] [-l <log>]
+
+Options:
+  -n, --no-switch        do not switch windows
+  -d, --debug            enable debugging
+  -D, --dump             dump the sway tree (needs -d as well)
+  -l, --logfile string   write output to logfile
+  -v, --verbose          enable verbose logging
+  -V, --version          show program version
+
+Copyleft (L) 2025 Thomas von Dein.
+Licensed under the terms of the GNU GPL version 3.
+`
 
 func main() {
 	flag.BoolVarP(&Debug, "debug", "d", false, "enable debugging")
+	flag.BoolVarP(&Dumptree, "dump", "D", false, "dump the sway tree (needs -d as well)")
+	flag.BoolVarP(&Verbose, "verbose", "v", false, "enable verbose logging")
 	flag.BoolVarP(&Notswitch, "no-switch", "n", false, "do not switch windows")
-	flag.BoolVarP(&Version, "version", "v", false, "show program version")
+	flag.BoolVarP(&Version, "version", "V", false, "show program version")
+	flag.BoolVarP(&Showhelp, "help", "h", Showhelp, "show help")
+
+	flag.StringVarP(&Logfile, "logfile", "l", "", "write output to logfile")
 	flag.Parse()
 
 	if Version {
 		fmt.Printf("This is swaycycle version %s\n", VERSION)
 		os.Exit(0)
+	}
+
+	if Showhelp {
+		fmt.Println(Usage)
+		os.Exit(0)
+	}
+
+	// setup logging
+	if Logfile != "" {
+		file, err := os.OpenFile(Logfile, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+		if err != nil {
+			log.Fatalf("Failed to open logfile %s: %s", Logfile, err)
+		}
+		defer file.Close()
+		setupLogging(file)
+	} else {
+		setupLogging(os.Stdout)
 	}
 
 	// fills Visibles node list
@@ -80,6 +131,48 @@ func main() {
 
 	if id > 0 && !Notswitch {
 		switchFocus(id)
+	}
+}
+
+func setupLogging(output io.Writer) {
+	logLevel := &slog.LevelVar{}
+
+	if !Debug {
+		// default logging
+		opts := &tint.Options{
+			Level:     logLevel,
+			AddSource: false,
+			NoColor:   IsNoTty(),
+		}
+
+		if Verbose {
+			logLevel.Set(slog.LevelInfo)
+		} else {
+			logLevel.Set(LevelNotice)
+		}
+
+		handler := tint.NewHandler(output, opts)
+		logger := slog.New(handler)
+
+		slog.SetDefault(logger)
+	} else {
+		// we're using a more verbose logger in debug mode
+		buildInfo, _ := debug.ReadBuildInfo()
+		opts := &yadu.Options{
+			Level:     logLevel,
+			AddSource: true,
+		}
+
+		logLevel.Set(slog.LevelDebug)
+
+		handler := yadu.NewHandler(output, opts)
+		debuglogger := slog.New(handler).With(
+			slog.Group("program_info",
+				slog.Int("pid", os.Getpid()),
+				slog.String("go_version", buildInfo.GoVersion),
+			),
+		)
+		slog.SetDefault(debuglogger)
 	}
 }
 
@@ -115,9 +208,8 @@ func switchFocus(id int) {
 	var cmd *exec.Cmd
 	arg := fmt.Sprintf("[con_id=%d]", id)
 
-	if Debug {
-		fmt.Printf("executing: swaymsg %s focus\n", arg)
-	}
+	slog.Debug("executing", "command", "swaymsg "+arg+" focus")
+
 	cmd = exec.Command("swaymsg", arg, "focus")
 
 	errbuf := &bytes.Buffer{}
@@ -126,25 +218,22 @@ func switchFocus(id int) {
 	out, err := cmd.Output()
 
 	if err != nil {
+		slog.Debug("failed to execute swaymsg", "output", out)
 		log.Fatalf("Failed to execute swaymsg to switch focus: %s", err)
-		if Debug {
-			fmt.Println(out)
-		}
 	}
 
 	if errbuf.String() != "" {
 		log.Fatalf("swaymsg error: %s", errbuf.String())
 	}
 
+	slog.Info("switched focus", "con_id", id)
 }
 
 // execute swaymsg to get its internal tree
 func fetchSwayTree() {
 	var cmd *exec.Cmd
 
-	if Debug {
-		fmt.Println("executing: swaymsg -t get_tree -r")
-	}
+	slog.Debug("executing", "command", "swaymsg -t get_tree -r")
 
 	cmd = exec.Command("swaymsg", "-t", "get_tree", "-r")
 
@@ -196,6 +285,10 @@ func processJSON(jsoncode []byte) error {
 		return fmt.Errorf("Invalid or empty JSON structure")
 	}
 
+	if Dumptree {
+		slog.Debug("processed sway tree", "sway", sway)
+	}
+
 	for _, node := range sway.Nodes {
 		if node.Current_workspace != "" {
 			// this is an output node containing the current workspace
@@ -205,9 +298,7 @@ func processJSON(jsoncode []byte) error {
 		}
 	}
 
-	if Debug {
-		repr.Println(Visibles)
-	}
+	slog.Debug("processed visible windows", "visibles", Visibles)
 
 	return nil
 }
@@ -237,4 +328,14 @@ func recurseNodes(nodes []Node) {
 			recurseNodes(node.Nodes)
 		}
 	}
+}
+
+// returns TRUE if stdout is NOT a tty or windows
+func IsNoTty() bool {
+	if !isatty.IsTerminal(os.Stdout.Fd()) {
+		return true
+	}
+
+	// it is a tty
+	return false
 }
