@@ -72,6 +72,12 @@ In order to report a bug,  unexpected behavior, feature requests or to
 submit    a    patch,    please    open   an    issue    on    github:
 https://github.com/tlinden/swaycycle/issues.
 
+## See also
+
+- [sway-ipc(7)](https://www.mankier.com/7/sway-ipc)
+- [swaywm](https://github.com/swaywm/sway/)
+- [swayfs](https://github.com/WillPower3309/swayfx)
+
 ## Copyright and license
 
 This software is licensed under the GNU GENERAL PUBLIC LICENSE version 3.
