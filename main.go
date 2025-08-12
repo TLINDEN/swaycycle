@@ -19,7 +19,6 @@ package main
 
 import (
 	"encoding/binary"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -214,7 +213,7 @@ func readResponseIPC(sock net.Conn) ([]byte, error) {
 		return nil, fmt.Errorf("failed to read header from socket: %s", err)
 	}
 
-	slog.Debug("got IPC header", "header", hex.EncodeToString(buf))
+	// slog.Debug("got IPC header", "header", hex.EncodeToString(buf))
 
 	if string(buf[:6]) != IPC_MAGIC {
 		return nil, fmt.Errorf("got invalid IPC response from sway socket")
@@ -314,7 +313,7 @@ func findNextWindow() int {
 func switchFocus(id int, sock net.Conn) error {
 	command := fmt.Sprintf("[con_id=%d] focus", id)
 
-	slog.Debug("executing", "command", command)
+	slog.Debug("sending ipc", "command", command)
 
 	// send switch focus command
 	err := sendHeaderIPC(sock, IPC_RUN_COMMAND, uint32(len(command)))

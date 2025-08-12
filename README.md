@@ -76,7 +76,7 @@ https://github.com/tlinden/swaycycle/issues.
 
 - [sway-ipc(7)](https://www.mankier.com/7/sway-ipc)
 - [swaywm](https://github.com/swaywm/sway/)
-- [swayfs](https://github.com/WillPower3309/swayfx)
+- [swayfx](https://github.com/WillPower3309/swayfx)
 
 ## Copyright and license
 
