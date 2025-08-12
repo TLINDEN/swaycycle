@@ -43,12 +43,12 @@ bindsym $mod+Tab exec ~/bin/swaycycle -d -l /tmp/cycle.log
 ## How does it work?
 
 `swaycycle` is being executed by sway when the user presses a key
-(e.g. `ALT-tab`). It then executes:
-
-`swaymsg -t get_tree -r`
-
-to get a  JSON representation of the current setup  (a tree consisting
-of outputs, workspaces, containers and running programs).
+(e.g. `ALT-tab`). It then connects to the running sway instance via
+the provided IPC unix domain socket as available in the environment
+variable `SWAYSOCK`. Via that connection it sends the `GET_TREE`
+command and processes the retrieved JSON response. This JSON tree
+contains all information about the running instance such as outputs,
+workspaces and containers.
 
 Then it determines which workspace is the current active one and
 builds a list of all windows visible on that workspace, whether
@@ -58,12 +58,10 @@ Next it determines which window is following the one in the list with
 the current active focus. If the active one is at the end of the list,
 it starts from the top.
 
-Finally another swaymsg command is being executed to give focus to the
-calculated next window, e.g.:
+Finally `swaycycle` sends the propper switch focus command via the IPC
+connection to sway, e.g.:
 
-`swaymsg [con_id=14] focus`
-
-`swaycycle` then just exists. It does not store any state to disk.
+`[con_id=14] focus`
 
 ## Getting help
 
