@@ -5,12 +5,11 @@ floating  ones or  windows  in sub-containers.   So  it simulates  the
 behavior of other window managers  and desktop environments. Just bind
 the tool to `ALT-tab` and there you go.
 
-![Screenshot](https://github.com/TLINDEN/swaycycle/blob/main/.github/assets/screenshot.png)
 
 ## Installation
 
 Download  the   binary  for   your  architecture  from   the  [release
-page](https://github.com/TLINDEN/swaycycle/releases) and copy to to to
+page](https://github.com/TLINDEN/swaycycle/releases) and copy to
 some location within your `$PATH`.
 
 To  build  the  tool  from  source,  checkout  the  repo  and  execute
