@@ -318,10 +318,6 @@ func switchFocus(id int, sock net.Conn) error {
 	// send switch focus command
 	err := sendHeaderIPC(sock, IPC_RUN_COMMAND, uint32(len(command)))
 	if err != nil {
-		return err
-	}
-
-	if err != nil {
 		return fmt.Errorf("failed to send run_command to IPC %w", err)
 	}
 
