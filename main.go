@@ -18,40 +18,20 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 package main
 
 import (
-	"encoding/binary"
-	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"log/slog"
-	"net"
 	"os"
 	"runtime/debug"
 
 	"github.com/lmittmann/tint"
 	"github.com/mattn/go-isatty"
+	"github.com/tlinden/i3ipc"
 	"github.com/tlinden/yadu"
 
 	flag "github.com/spf13/pflag"
 )
-
-type Node struct {
-	Id                int    `json:"id"`
-	Nodetype          string `json:"type"` // output, workspace or container
-	Name              string `json:"name"` // workspace number or app name
-	Nodes             []Node `json:"nodes"`
-	FloatingNodes     []Node `json:"floating_nodes"`
-	Focused           bool   `json:"focused"`
-	Window            int    `json:"window"` // wayland native
-	X11Window         string `json:"app_id"` // x11 compat
-	Current_workspace string `json:"current_workspace"`
-}
-
-type Response struct {
-	Success    bool   `json:"success"`
-	ParseError bool   `json:"parse_error"`
-	Error      string `json:"error"`
-}
 
 const (
 	root = iota + 1
@@ -62,7 +42,7 @@ const (
 
 	LevelNotice = slog.Level(2)
 
-	VERSION = "v0.2.0"
+	VERSION = "v0.3.0"
 
 	IPC_HEADER_SIZE = 14
 	IPC_MAGIC       = "i3-ipc"
@@ -73,7 +53,7 @@ const (
 )
 
 var (
-	Visibles         = []Node{}
+	Visibles         = []*i3ipc.Node{}
 	CurrentWorkspace = ""
 	Debug            = false
 	Dumptree         = false
@@ -132,19 +112,21 @@ func main() {
 	}
 
 	// connect to sway unix socket
-	unixsock, err := setupIPC()
-	if err != nil {
-		log.Fatalf("Failed to connect to sway unix socket: %s", err)
-	}
+	ipc := i3ipc.NewI3ipc()
 
-	// retrieve the raw json tree
-	rawjson, err := getTree(unixsock)
+	err := ipc.Connect()
 	if err != nil {
-		log.Fatalf("Failed to retrieve raw json tree: %s", err)
+		log.Fatal(err)
+	}
+	defer ipc.Close()
+
+	sway, err := ipc.GetTree()
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	// traverse the tree and find visible windows
-	if err := processJSON(rawjson); err != nil {
+	if err := processJSON(sway); err != nil {
 		log.Fatalf("%s", err)
 	}
 
@@ -156,110 +138,13 @@ func main() {
 	slog.Debug("findNextWindow", "nextid", id)
 
 	if id > 0 && !Notswitch {
-		switchFocus(id, unixsock)
+		switchFocus(id, ipc)
 	}
-}
-
-// connect to unix socket
-func setupIPC() (net.Conn, error) {
-	sockfile := os.Getenv("SWAYSOCK")
-
-	if sockfile == "" {
-		return nil, fmt.Errorf("Environment variable SWAYSOCK does not exist or is empty")
-	}
-
-	conn, err := net.Dial("unix", sockfile)
-	if err != nil {
-		return nil, err
-	}
-
-	return conn, nil
-}
-
-// send a sway message header
-func sendHeaderIPC(sock net.Conn, messageType uint32, len uint32) error {
-	sendPayload := make([]byte, IPC_HEADER_SIZE)
-	copy(sendPayload, []byte(IPC_MAGIC))
-	binary.LittleEndian.PutUint32(sendPayload[6:], len)
-	binary.LittleEndian.PutUint32(sendPayload[10:], messageType)
-
-	_, err := sock.Write(sendPayload)
-
-	if err != nil {
-		return fmt.Errorf("failed to send header to IPC %w", err)
-	}
-
-	return nil
-}
-
-// send a payload, header had to be sent before
-func sendPayloadIPC(sock net.Conn, payload []byte) error {
-	_, err := sock.Write(payload)
-
-	if err != nil {
-		return fmt.Errorf("failed to send payload to IPC %w", err)
-	}
-
-	return nil
-}
-
-// read a response, reads response header and returns payload only
-func readResponseIPC(sock net.Conn) ([]byte, error) {
-	// read header
-	buf := make([]byte, IPC_HEADER_SIZE)
-
-	_, err := sock.Read(buf)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read header from socket: %s", err)
-	}
-
-	// slog.Debug("got IPC header", "header", hex.EncodeToString(buf))
-
-	if string(buf[:6]) != IPC_MAGIC {
-		return nil, fmt.Errorf("got invalid IPC response from sway socket")
-	}
-
-	payloadLen := binary.LittleEndian.Uint32(buf[6:10])
-
-	if payloadLen == 0 {
-		return nil, fmt.Errorf("got empty payload IPC response from sway socket")
-	}
-
-	// read payload
-	payload := make([]byte, payloadLen)
-
-	_, err = sock.Read(payload)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read payload from socket: %s", err)
-	}
-
-	return payload, nil
-}
-
-// get raw JSON tree via sway IPC
-func getTree(sock net.Conn) ([]byte, error) {
-	err := sendHeaderIPC(sock, IPC_GET_TREE, 0)
-	if err != nil {
-		return nil, err
-	}
-
-	payload, err := readResponseIPC(sock)
-	if err != nil {
-		return nil, err
-	}
-
-	return payload, nil
 }
 
 // get into the sway tree, determine current workspace and extract all
 // its visible windows, store them in the global var Visibles
-func processJSON(jsoncode []byte) error {
-	sway := Node{}
-
-	if err := json.Unmarshal(jsoncode, &sway); err != nil {
-		return fmt.Errorf("Failed to unmarshal json: %w", err)
-	}
-
+func processJSON(sway *i3ipc.Node) error {
 	if !istype(sway, root) && len(sway.Nodes) == 0 {
 		return fmt.Errorf("Invalid or empty JSON structure")
 	}
@@ -310,41 +195,11 @@ func findNextWindow() int {
 }
 
 // actually switch focus using a swaymsg command
-func switchFocus(id int, sock net.Conn) error {
-	command := fmt.Sprintf("[con_id=%d] focus", id)
-
-	slog.Debug("sending ipc", "command", command)
-
-	// send switch focus command
-	err := sendHeaderIPC(sock, IPC_RUN_COMMAND, uint32(len(command)))
+func switchFocus(id int, ipc *i3ipc.I3ipc) error {
+	responses, err := ipc.RunContainerCommand(id, "focus")
 	if err != nil {
-		return fmt.Errorf("failed to send run_command to IPC %w", err)
-	}
-
-	err = sendPayloadIPC(sock, []byte(command))
-	if err != nil {
-		return fmt.Errorf("failed to send switch focus command: %w", err)
-	}
-
-	// check response from sway
-	payload, err := readResponseIPC(sock)
-	if err != nil {
-		return err
-	}
-
-	responses := []Response{}
-
-	if err := json.Unmarshal(payload, &responses); err != nil {
-		return fmt.Errorf("Failed to unmarshal json response: %w", err)
-	}
-
-	if len(responses) == 0 {
-		return fmt.Errorf("Got invalid IPC zero response")
-	}
-
-	if !responses[0].Success {
-		slog.Debug("IPC response to switch focus command", "response", responses)
-		return fmt.Errorf("Failed to switch focus: %s", responses[0].Error)
+		log.Fatalf("failed to send focus command to container %d: %w (%s)",
+			id, responses[0].Error, err)
 	}
 
 	slog.Info("switched focus", "con_id", id)
@@ -353,7 +208,7 @@ func switchFocus(id int, sock net.Conn) error {
 }
 
 // iterate recursively over given node list extracting visible windows
-func recurseNodes(nodes []Node) {
+func recurseNodes(nodes []*i3ipc.Node) {
 	for _, node := range nodes {
 		// we handle nodes and floating_nodes identical
 		node.Nodes = append(node.Nodes, node.FloatingNodes...)
@@ -420,8 +275,8 @@ func setupLogging(output io.Writer) {
 }
 
 // little helper to distinguish sway tree node types
-func istype(nd Node, which int) bool {
-	switch nd.Nodetype {
+func istype(nd *i3ipc.Node, which int) bool {
+	switch nd.Type {
 	case "root":
 		return which == root
 	case "output":

@@ -9,6 +9,7 @@ require (
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/spf13/pflag v1.0.7 // indirect
+	github.com/tlinden/i3ipc v0.0.0-20250815101608-4f7e27528be3 // indirect
 	github.com/tlinden/yadu v0.1.3 // indirect
 	golang.org/x/sys v0.14.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
