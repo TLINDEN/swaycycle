@@ -6,7 +6,7 @@ require (
 	github.com/lmittmann/tint v1.1.2
 	github.com/mattn/go-isatty v0.0.20
 	github.com/spf13/pflag v1.0.7
-	github.com/tlinden/swayipc v0.0.0-20250816175030-177eecd4757f
+	github.com/tlinden/swayipc v0.3.0
 	github.com/tlinden/yadu v0.1.3
 )
 
