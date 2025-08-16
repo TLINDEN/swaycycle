@@ -27,7 +27,7 @@ import (
 
 	"github.com/lmittmann/tint"
 	"github.com/mattn/go-isatty"
-	"github.com/tlinden/i3ipc"
+	"github.com/tlinden/swayipc"
 	"github.com/tlinden/yadu"
 
 	flag "github.com/spf13/pflag"
@@ -42,18 +42,11 @@ const (
 
 	LevelNotice = slog.Level(2)
 
-	VERSION = "v0.3.0"
-
-	IPC_HEADER_SIZE = 14
-	IPC_MAGIC       = "i3-ipc"
-
-	// message types
-	IPC_GET_TREE    = 4
-	IPC_RUN_COMMAND = 0
+	VERSION = "v0.4.0"
 )
 
 var (
-	Visibles         = []*i3ipc.Node{}
+	Visibles         = []*swayipc.Node{}
 	CurrentWorkspace = ""
 	Debug            = false
 	Dumptree         = false
@@ -112,7 +105,7 @@ func main() {
 	}
 
 	// connect to sway unix socket
-	ipc := i3ipc.NewI3ipc()
+	ipc := swayipc.NewSwayIPC()
 
 	err := ipc.Connect()
 	if err != nil {
@@ -144,7 +137,7 @@ func main() {
 
 // get into the sway tree, determine current workspace and extract all
 // its visible windows, store them in the global var Visibles
-func processJSON(sway *i3ipc.Node) error {
+func processJSON(sway *swayipc.Node) error {
 	if !istype(sway, root) && len(sway.Nodes) == 0 {
 		return fmt.Errorf("Invalid or empty JSON structure")
 	}
@@ -195,7 +188,7 @@ func findNextWindow() int {
 }
 
 // actually switch focus using a swaymsg command
-func switchFocus(id int, ipc *i3ipc.I3ipc) error {
+func switchFocus(id int, ipc *swayipc.SwayIPC) error {
 	responses, err := ipc.RunContainerCommand(id, "focus")
 	if err != nil {
 		log.Fatalf("failed to send focus command to container %d: %w (%s)",
@@ -208,7 +201,7 @@ func switchFocus(id int, ipc *i3ipc.I3ipc) error {
 }
 
 // iterate recursively over given node list extracting visible windows
-func recurseNodes(nodes []*i3ipc.Node) {
+func recurseNodes(nodes []*swayipc.Node) {
 	for _, node := range nodes {
 		// we handle nodes and floating_nodes identical
 		node.Nodes = append(node.Nodes, node.FloatingNodes...)
@@ -275,7 +268,7 @@ func setupLogging(output io.Writer) {
 }
 
 // little helper to distinguish sway tree node types
-func istype(nd *i3ipc.Node, which int) bool {
+func istype(nd *swayipc.Node, which int) bool {
 	switch nd.Type {
 	case "root":
 		return which == root
