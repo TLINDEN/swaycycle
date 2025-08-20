@@ -24,6 +24,7 @@ import (
 	"log/slog"
 	"os"
 	"runtime/debug"
+	"sort"
 
 	"github.com/lmittmann/tint"
 	"github.com/mattn/go-isatty"
@@ -220,6 +221,7 @@ func findPrevWindow() int {
 
 	return 0
 }
+
 // actually switch focus using a swaymsg command
 func switchFocus(id int, ipc *i3ipc.I3ipc) error {
 	responses, err := ipc.RunContainerCommand(id, "focus")
@@ -236,11 +238,17 @@ func switchFocus(id int, ipc *i3ipc.I3ipc) error {
 // iterate recursively over given node list extracting visible windows
 func recurseNodes(nodes []*i3ipc.Node) {
 	for _, node := range nodes {
-		// we handle nodes and floating_nodes identical
-		node.Nodes = append(node.Nodes, node.FloatingNodes...)
 
 		if istype(node, workspace) {
 			if node.Name == CurrentWorkspace {
+				//floating_nodes need to be sorted because
+				//order changes each time they are focused.
+				FloatVis := node.FloatingNodes
+				sort.Slice(FloatVis, func(i, j int) bool {
+					return FloatVis[i].Id < FloatVis[j].Id
+				})
+				//now we can handle nodes and floating_nodes identical
+				node.Nodes = append(node.Nodes, FloatVis...)
 				recurseNodes(node.Nodes)
 				return
 			}
