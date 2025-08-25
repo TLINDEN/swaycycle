@@ -24,6 +24,7 @@ import (
 	"log/slog"
 	"os"
 	"runtime/debug"
+	"sort"
 
 	"github.com/lmittmann/tint"
 	"github.com/mattn/go-isatty"
@@ -55,6 +56,7 @@ const (
 var (
 	Visibles         = []*i3ipc.Node{}
 	CurrentWorkspace = ""
+	Previous         = false
 	Debug            = false
 	Dumptree         = false
 	Version          = false
@@ -69,6 +71,7 @@ const Usage string = `This is swaycycle - cycle focus through all visible window
 Usage: swaycycle [-vdDn] [-l <log>]
 
 Options:
+  -p, --prev             cycle backward
   -n, --no-switch        do not switch windows
   -d, --debug            enable debugging
   -D, --dump             dump the sway tree (needs -d as well)
@@ -80,6 +83,7 @@ Licensed under the terms of the GNU GPL version 3.
 `
 
 func main() {
+	flag.BoolVarP(&Previous, "prev", "p", false, "cycle backward")
 	flag.BoolVarP(&Debug, "debug", "d", false, "enable debugging")
 	flag.BoolVarP(&Dumptree, "dump", "D", false, "dump the sway tree (needs -d as well)")
 	flag.BoolVarP(&Notswitch, "no-switch", "n", false, "do not switch windows")
@@ -134,8 +138,14 @@ func main() {
 		os.Exit(0)
 	}
 
-	id := findNextWindow()
-	slog.Debug("findNextWindow", "nextid", id)
+	id := 0
+	if Previous {
+		id = findPrevWindow()
+		slog.Debug("findPrevWindow", "nextid", id)
+	} else {
+		id = findNextWindow()
+		slog.Debug("findNextWindow", "nextid", id)
+	}
 
 	if id > 0 && !Notswitch {
 		switchFocus(id, ipc)
@@ -194,6 +204,24 @@ func findNextWindow() int {
 	return 0
 }
 
+func findPrevWindow() int {
+	vislen := len(Visibles)
+	if vislen == 0 {
+		return 0
+	}
+
+	prevnode := Visibles[vislen-1].Id
+
+	for _, node := range Visibles {
+		if node.Focused {
+			return prevnode
+		}
+		prevnode = node.Id
+	}
+
+	return 0
+}
+
 // actually switch focus using a swaymsg command
 func switchFocus(id int, ipc *i3ipc.I3ipc) error {
 	responses, err := ipc.RunContainerCommand(id, "focus")
@@ -210,11 +238,17 @@ func switchFocus(id int, ipc *i3ipc.I3ipc) error {
 // iterate recursively over given node list extracting visible windows
 func recurseNodes(nodes []*i3ipc.Node) {
 	for _, node := range nodes {
-		// we handle nodes and floating_nodes identical
-		node.Nodes = append(node.Nodes, node.FloatingNodes...)
 
 		if istype(node, workspace) {
 			if node.Name == CurrentWorkspace {
+				//floating_nodes need to be sorted because
+				//order changes each time they are focused.
+				FloatVis := node.FloatingNodes
+				sort.Slice(FloatVis, func(i, j int) bool {
+					return FloatVis[i].Id < FloatVis[j].Id
+				})
+				//now we can handle nodes and floating_nodes identical
+				node.Nodes = append(node.Nodes, FloatVis...)
 				recurseNodes(node.Nodes)
 				return
 			}
