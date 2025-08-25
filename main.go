@@ -43,7 +43,7 @@ const (
 
 	LevelNotice = slog.Level(2)
 
-	VERSION = "v0.3.0"
+	VERSION = "v0.3.1"
 
 	IPC_HEADER_SIZE = 14
 	IPC_MAGIC       = "i3-ipc"
