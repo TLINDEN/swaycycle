@@ -57,6 +57,7 @@ var (
 	CurrentWorkspace = ""
 	Debug            = false
 	Dumptree         = false
+	Dumpvisibles     = false
 	Version          = false
 	Verbose          = false
 	Notswitch        = false
@@ -72,6 +73,7 @@ Options:
   -n, --no-switch        do not switch windows
   -d, --debug            enable debugging
   -D, --dump             dump the sway tree (needs -d as well)
+      --dump-visibles    dump a list of visible windows on current workspace (needs -d)
   -l, --logfile string   write output to logfile
   -v, --version          show program version
 
@@ -82,6 +84,7 @@ Licensed under the terms of the GNU GPL version 3.
 func main() {
 	flag.BoolVarP(&Debug, "debug", "d", false, "enable debugging")
 	flag.BoolVarP(&Dumptree, "dump", "D", false, "dump the sway tree (needs -d as well)")
+	flag.BoolVarP(&Dumpvisibles, "dump-visibles", "", false, "dump a list of visible windows on current workspace (needs -d)")
 	flag.BoolVarP(&Notswitch, "no-switch", "n", false, "do not switch windows")
 	flag.BoolVarP(&Version, "version", "v", false, "show program version")
 	flag.BoolVarP(&Showhelp, "help", "h", Showhelp, "show help")
@@ -162,7 +165,9 @@ func processJSON(sway *i3ipc.Node) error {
 		}
 	}
 
-	slog.Debug("processed visible windows", "visibles", Visibles)
+	if Dumpvisibles {
+		dumpVisibles()
+	}
 
 	return nil
 }
@@ -232,6 +237,16 @@ func recurseNodes(nodes []*i3ipc.Node) {
 			recurseNodes(node.Nodes)
 		}
 	}
+}
+
+func dumpVisibles() {
+	windows := make([]string, len(Visibles))
+
+	for idx, node := range Visibles {
+		windows[idx] = fmt.Sprintf("id: %02d, focus: %5t, name: %s", node.Id, node.Focused, node.Name)
+	}
+
+	slog.Debug("visible windows on current workspace", "visibles", windows)
 }
 
 // we use line wise logging, unless debugging is enabled
