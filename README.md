@@ -24,6 +24,13 @@ Add such a line to your sway config file (e.g. in `$HOME/.config/sway/config`):
 bindsym $mod+Tab exec ~/bin/swaycycle
 ```
 
+You may  also add  a second key  binding to do  the reverse,  which is
+sometimes very useful:
+
+```default
+bindsym $mod+Shift+Tab exec ~/bin/swaycycle --prev
+```
+
 ## Debugging
 
 You may call `swaycycle` in a terminal window on a workspace with at
