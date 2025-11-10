@@ -1,6 +1,9 @@
 [![status-badge](https://ci.codeberg.org/api/badges/15562/status.svg)](https://ci.codeberg.org/repos/15562)
 [![License](https://img.shields.io/badge/license-GPL-blue.svg)](https://codeberg.org/scip/swaycycle/raw/branch/main/LICENSE)
-[![Go Report Card](https://goreportcard.com/badge/codeberg.org/scip/epuppy)](https://goreportcard.com/report/codeberg.org/scip/swaycycle)
+[![Go Report Card](https://goreportcard.com/badge/codeberg.org/scip/epuppy)](https://goreportcard.com/report/codeberg.org/scip/swaycycleg)
+
+> [!CAUTION]
+> This software is now being maintained on [Codeberg](https://codeberg.org/scip/swaycycle/).
 
 # swaycycle
 
