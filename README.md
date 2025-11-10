@@ -1,3 +1,7 @@
+[![status-badge](https://ci.codeberg.org/api/badges/15562/status.svg)](https://ci.codeberg.org/repos/15562)
+[![License](https://img.shields.io/badge/license-GPL-blue.svg)](https://codeberg.org/scip/swaycycle/raw/branch/main/LICENSE)
+[![Go Report Card](https://goreportcard.com/badge/codeberg.org/scip/epuppy)](https://goreportcard.com/report/codeberg.org/scip/swaycycle)
+
 # swaycycle
 
 Cycle through  all visible windows  on a sway[fx]  workspace including
@@ -9,7 +13,7 @@ the tool to `ALT-tab` and there you go.
 ## Installation
 
 Download  the   binary  for   your  architecture  from   the  [release
-page](https://github.com/TLINDEN/swaycycle/releases) and copy to
+page](https://codeberg.org/scip/swaycycle/releases) and copy to
 some location within your `$PATH`.
 
 To  build  the  tool  from  source,  checkout  the  repo  and  execute
@@ -76,7 +80,7 @@ best way for me to forget to do something.
 
 In order to report a bug,  unexpected behavior, feature requests or to
 submit    a    patch,    please    open   an    issue    on    github:
-https://github.com/tlinden/swaycycle/issues.
+https://codeberg.org/scip/swaycycle/issues.
 
 ## See also
 
@@ -94,7 +98,7 @@ T.v.Dein <tom AT vondein DOT org>
 
 ## Project homepage
 
-https://github.com/tlinden/swaycycle
+https://codeberg.org/scip/swaycycle
 
 ## Copyright and License
 

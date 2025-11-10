@@ -18,6 +18,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -81,8 +82,7 @@ Options:
   -v, --version          show program version
 
 Copyleft (L) 2025 Thomas von Dein.
-Licensed under the terms of the GNU GPL version 3.
-`
+Licensed under the terms of the GNU GPL version 3.`
 
 func main() {
 	flag.BoolVarP(&Previous, "prev", "p", false, "cycle backward")
@@ -112,7 +112,11 @@ func main() {
 		if err != nil {
 			log.Fatalf("Failed to open logfile %s: %s", Logfile, err)
 		}
-		defer file.Close()
+		defer func() {
+			if err := file.Close(); err != nil {
+				log.Fatalf("failed to close log file: %s", err)
+			}
+		}()
 		setupLogging(file)
 	} else {
 		setupLogging(os.Stdout)
@@ -151,7 +155,9 @@ func main() {
 	}
 
 	if id > 0 && !Notswitch {
-		switchFocus(id, ipc)
+		if err := switchFocus(id, ipc); err != nil {
+			log.Fatalf("%s", err)
+		}
 	}
 }
 
@@ -159,7 +165,7 @@ func main() {
 // its visible windows, store them in the global var Visibles
 func processJSON(sway *i3ipc.Node) error {
 	if !istype(sway, root) && len(sway.Nodes) == 0 {
-		return fmt.Errorf("Invalid or empty JSON structure")
+		return errors.New("invalid or empty JSON structure")
 	}
 
 	if Dumptree {
@@ -231,7 +237,7 @@ func findPrevWindow() int {
 func switchFocus(id int, ipc *i3ipc.I3ipc) error {
 	responses, err := ipc.RunContainerCommand(id, "focus")
 	if err != nil {
-		log.Fatalf("failed to send focus command to container %d: %w (%s)",
+		log.Fatalf("failed to send focus command to container %d: %s (%s)",
 			id, responses[0].Error, err)
 	}
 
